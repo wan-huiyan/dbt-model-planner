@@ -3,8 +3,7 @@
   "name": "dbt-model-planner",
   "description": "Plan and build dbt models from schema requirements through structured planning with human review, schema validation, and multi-dialect SQL generation",
   "owner": {
-    "name": "Huiyan Wan",
-    "email": "huiyan.wan@monks.com"
+    "name": "Huiyan Wan"
   },
   "plugins": [
     {
@@ -17,8 +16,7 @@
       ],
       "version": "2.1.0",
       "author": {
-        "name": "Huiyan Wan",
-        "email": "huiyan.wan@monks.com"
+        "name": "Huiyan Wan"
       },
       "homepage": "https://github.com/wan-huiyan/dbt-model-planner",
       "tags": ["dbt", "data-engineering", "sql", "analytics-engineering", "databricks", "snowflake", "bigquery"]
