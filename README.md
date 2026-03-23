@@ -24,22 +24,32 @@ Takes a target schema (CSV spec, dashboard brief, or requirements doc) and guide
 - **Event noise filtering** — blacklist-based telemetry filtering for event-level models, with Excel review doc generation
 - **Battle-tested tips** — COALESCE across event name fields, taxonomy mismatch handling, deterministic tie-breakers
 
-## Install
+## Installation
 
-**Via plugin marketplace** (recommended):
-```
-/plugin marketplace add wan-huiyan/dbt-model-planner
-/plugin install dbt-model-planner
-```
+### Claude Code
 
-**Manual (Claude Code CLI):**
 ```bash
+# Plugin install (recommended)
+/plugin marketplace add wan-huiyan/dbt-model-planner
+/plugin install dbt-model-planner@wan-huiyan-dbt-model-planner
+
+# Git clone (always works)
 git clone https://github.com/wan-huiyan/dbt-model-planner.git ~/.claude/skills/dbt-model-planner
 ```
 
-**Claude.ai (web):**
-1. Download this repo as ZIP (Code > Download ZIP)
-2. Go to Settings > Customize > Skills > Upload ZIP
+### Cursor (2.4+)
+
+```bash
+# Per-project rule (most reliable)
+mkdir -p .cursor/rules
+# Create .cursor/rules/dbt-model-planner.mdc with SKILL.md content + alwaysApply: true
+
+# npx skills CLI
+npx skills add wan-huiyan/dbt-model-planner --global
+
+# Manual global install
+git clone https://github.com/wan-huiyan/dbt-model-planner.git ~/.cursor/skills/dbt-model-planner
+```
 
 ## Usage
 

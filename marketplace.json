@@ -1,6 +1,6 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "dbt-model-planner",
+  "name": "wan-huiyan-dbt-model-planner",
   "description": "Plan and build dbt models from schema requirements through structured planning with human review, schema validation, and multi-dialect SQL generation",
   "owner": {
     "name": "Huiyan Wan"
