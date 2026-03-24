@@ -58,6 +58,11 @@ The skill triggers automatically when you:
 - Ask "which source tables should I use for this report?"
 - Mention "data sources schema", "source mapping", "field mapping"
 - Ask to "document a plan" for a dbt model
+- "Help me plan a dbt model" / "map these columns to source tables"
+- "Create a planning spreadsheet for this model" / "which staging models should I join"
+- "Plan the source mappings for this fact table" / "I have a target schema for a new dbt model"
+- "Reverse-engineer the transformations needed" / "validate source fields before writing SQL"
+- "Build a dbt model from these dashboard requirements" / "plan a dim/fact model from this brief"
 
 ## Conventions
 
@@ -76,6 +81,16 @@ The skill includes 7 recommended conventions verified against official dbt docs:
 ## Related Skills
 
 - [agent-review-panel](https://github.com/wan-huiyan/agent-review-panel) — Multi-agent adversarial review (used to review this skill)
+
+## Version History
+
+| Version | Changes |
+|---------|---------|
+| 2.2.0 | Enrich trigger description, add eval suite, add composability metadata (schliff score: 61.4 → 82.7) |
+
+## Acknowledgements
+
+Trigger accuracy and eval suite improved using [schliff](https://github.com/Zandereins/schliff) — an autonomous skill scoring and improvement framework (composite score: 61.4 → 82.7).
 
 ## License
 
