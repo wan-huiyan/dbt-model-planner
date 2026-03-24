@@ -1,0 +1,354 @@
+{
+  "skill_name": "dbt-model-planner",
+  "version": "1.0.0",
+  "created_by": "schliff",
+  "triggers": [
+    {
+      "id": "pos-1",
+      "prompt": "I have a target schema for a new dbt model and need to map the columns to source tables. Can you help me plan the model?",
+      "should_trigger": true,
+      "category": "positive",
+      "notes": "Direct request to plan a dbt model from schema requirements"
+    },
+    {
+      "id": "pos-2",
+      "prompt": "Here's a CSV spec for a dashboard we need to build. Which dbt source models should I use for these fields?",
+      "should_trigger": true,
+      "category": "positive",
+      "notes": "Dashboard spec to dbt source mapping"
+    },
+    {
+      "id": "pos-3",
+      "prompt": "I need to reverse-engineer which transformations are needed to produce this target dataset from our existing dbt sources",
+      "should_trigger": true,
+      "category": "positive",
+      "notes": "Reverse-engineer transformation logic from target to sources"
+    },
+    {
+      "id": "pos-4",
+      "prompt": "We got a reporting brief from the analytics team. Can you create a structured implementation plan before I write the SQL for the dbt model?",
+      "should_trigger": true,
+      "category": "positive",
+      "notes": "Brief-to-plan before writing SQL"
+    },
+    {
+      "id": "pos-5",
+      "prompt": "I have a spreadsheet with the required dimensions and metrics for a new fact table. Help me map these to our existing staging models in dbt.",
+      "should_trigger": true,
+      "category": "positive",
+      "notes": "Dimensions/metrics mapping to dbt staging models"
+    },
+    {
+      "id": "pos-6",
+      "prompt": "Which source tables should I use for this campaign performance report? I need to build a dbt model for it.",
+      "should_trigger": true,
+      "category": "positive",
+      "notes": "Source table selection for dbt model"
+    },
+    {
+      "id": "pos-7",
+      "prompt": "I need to document a plan for a new dbt model that joins order data with session events. Can you help with the field mapping?",
+      "should_trigger": true,
+      "category": "positive",
+      "notes": "Document a plan with field mapping"
+    },
+    {
+      "id": "pos-8",
+      "prompt": "Can you help me figure out the source mapping for this new bi model? I have the target columns but I'm not sure which upstream dbt models have the data.",
+      "should_trigger": true,
+      "category": "positive",
+      "notes": "Source mapping request for bi model"
+    },
+    {
+      "id": "pos-9",
+      "prompt": "I need to build a dbt model from these dashboard requirements. The target grain is user-session level with revenue metrics.",
+      "should_trigger": true,
+      "category": "positive",
+      "notes": "Build dbt model from dashboard requirements with grain context"
+    },
+    {
+      "id": "pos-10",
+      "prompt": "Here's the data sources schema for the new retention model. Can you create a planning spreadsheet with source-to-target mappings?",
+      "should_trigger": true,
+      "category": "positive",
+      "notes": "Data sources schema to planning spreadsheet"
+    },
+    {
+      "id": "pos-11",
+      "prompt": "I have a brief describing the fields needed for an MTA attribution model. Help me plan which dbt sources to use and what transformation logic is needed.",
+      "should_trigger": true,
+      "category": "positive",
+      "notes": "Transformation logic planning from brief"
+    },
+    {
+      "id": "pos-12",
+      "prompt": "We need a new dim_customer model in dbt. I have the target schema with 15 columns — can you walk me through the planning process?",
+      "should_trigger": true,
+      "category": "positive",
+      "notes": "New dimension model with explicit column count"
+    },
+    {
+      "id": "pos-13",
+      "prompt": "The product team sent over requirements for a new dbt model. Can you help me validate the source field mappings before I start writing SQL?",
+      "should_trigger": true,
+      "category": "positive",
+      "notes": "Validate source field mappings pre-implementation"
+    },
+    {
+      "id": "pos-14",
+      "prompt": "I need to plan a fact_order_events dbt model. Can you explore the codebase, find available source models, and create a mapping document?",
+      "should_trigger": true,
+      "category": "positive",
+      "notes": "Full lifecycle: explore, map, document"
+    },
+    {
+      "id": "pos-15",
+      "prompt": "Help me plan which staging models to join for a new dbt model that combines web analytics with transaction data",
+      "should_trigger": true,
+      "category": "positive",
+      "notes": "Multi-source join planning"
+    },
+    {
+      "id": "neg-1",
+      "prompt": "Can you write a SQL query to analyze our monthly revenue trends by region?",
+      "should_trigger": false,
+      "category": "negative",
+      "notes": "Generic SQL analysis, not dbt model planning"
+    },
+    {
+      "id": "neg-2",
+      "prompt": "Help me set up an Airflow DAG to orchestrate our ETL pipeline from S3 to Redshift",
+      "should_trigger": false,
+      "category": "negative",
+      "notes": "ETL pipeline orchestration, not dbt model planning"
+    },
+    {
+      "id": "neg-3",
+      "prompt": "I need to build a data pipeline that extracts data from our API and loads it into BigQuery",
+      "should_trigger": false,
+      "category": "negative",
+      "notes": "EL pipeline, not dbt transformation planning"
+    },
+    {
+      "id": "neg-4",
+      "prompt": "Can you help me create a Python script to clean and transform this CSV file?",
+      "should_trigger": false,
+      "category": "negative",
+      "notes": "Python data cleaning, not dbt"
+    },
+    {
+      "id": "neg-5",
+      "prompt": "Write me a Looker dashboard definition with the right dimensions and measures",
+      "should_trigger": false,
+      "category": "negative",
+      "notes": "Dashboard building tool, not dbt model planning"
+    },
+    {
+      "id": "neg-6",
+      "prompt": "Help me optimize this slow SQL query that's timing out in production",
+      "should_trigger": false,
+      "category": "negative",
+      "notes": "SQL performance optimization, not planning"
+    },
+    {
+      "id": "neg-7",
+      "prompt": "I need to set up dbt Cloud CI/CD with GitHub Actions for our project",
+      "should_trigger": false,
+      "category": "negative",
+      "notes": "dbt infrastructure setup, not model planning"
+    },
+    {
+      "id": "neg-8",
+      "prompt": "Can you review this existing dbt model SQL for bugs and suggest improvements?",
+      "should_trigger": false,
+      "category": "negative",
+      "notes": "Code review of existing model, not planning new one"
+    },
+    {
+      "id": "neg-9",
+      "prompt": "Help me design the database schema for our new microservice",
+      "should_trigger": false,
+      "category": "negative",
+      "notes": "Database schema design, not dbt model planning"
+    },
+    {
+      "id": "neg-10",
+      "prompt": "I need to write unit tests for my dbt models using the dbt-unit-testing package",
+      "should_trigger": false,
+      "category": "negative",
+      "notes": "dbt testing, not model planning"
+    },
+    {
+      "id": "neg-11",
+      "prompt": "Can you analyze this dataset and give me insights about customer churn patterns?",
+      "should_trigger": false,
+      "category": "negative",
+      "notes": "Data analysis/insights, not dbt model planning"
+    },
+    {
+      "id": "neg-12",
+      "prompt": "Help me migrate our dbt project from Snowflake to BigQuery",
+      "should_trigger": false,
+      "category": "negative",
+      "notes": "dbt migration, not model planning from requirements"
+    },
+    {
+      "id": "edge-1",
+      "prompt": "I have a really simple model — just 3 columns from one source table. Do I need the full planning process?",
+      "should_trigger": true,
+      "category": "edge",
+      "notes": "Simple model — skill should trigger but apply lightweight path"
+    },
+    {
+      "id": "edge-2",
+      "prompt": "Build me a dbt model",
+      "should_trigger": true,
+      "category": "edge",
+      "notes": "Minimal input — should trigger but ask for requirements"
+    },
+    {
+      "id": "edge-3",
+      "prompt": "I need to create a new table in our warehouse that combines data from three systems",
+      "should_trigger": false,
+      "category": "edge",
+      "notes": "Could be dbt but no dbt mentioned — too ambiguous to trigger"
+    },
+    {
+      "id": "edge-4",
+      "prompt": "Can you help me with the transformation logic for mapping channel categories between our marketing and analytics platforms?",
+      "should_trigger": true,
+      "category": "edge",
+      "notes": "Mentions transformation logic and field mapping — key trigger phrases"
+    },
+    {
+      "id": "edge-5",
+      "prompt": "I already have the SQL written for my dbt model but the schema validation is failing. Can you help debug?",
+      "should_trigger": false,
+      "category": "edge",
+      "notes": "Debugging existing model, not planning from requirements"
+    },
+    {
+      "id": "edge-6",
+      "prompt": "I need to add 5 new columns to an existing dbt model. Here are the target field specs.",
+      "should_trigger": true,
+      "category": "edge",
+      "notes": "Extending existing model with new fields — still needs source mapping"
+    },
+    {
+      "id": "edge-7",
+      "prompt": "We changed the grain of the model from event-level to session-level. Can you re-plan the source mappings?",
+      "should_trigger": true,
+      "category": "edge",
+      "notes": "Grain change requiring re-planning"
+    },
+    {
+      "id": "edge-8",
+      "prompt": "Help me plan a data model for our application backend using Prisma ORM",
+      "should_trigger": false,
+      "category": "edge",
+      "notes": "Data model but not dbt — ORM/application layer"
+    }
+  ],
+  "test_cases": [
+    {
+      "id": "tc-1",
+      "prompt": "I have a target schema CSV with 20 columns for a new fact_campaign_performance dbt model. Help me plan the source mappings.",
+      "input_files": [],
+      "assertions": [
+        {"type": "contains", "value": "grain", "description": "Asks about or identifies the model grain"},
+        {"type": "contains", "value": "source", "description": "Discusses source models or tables"},
+        {"type": "pattern", "value": "(?i)(phase|step|plan)", "description": "References a structured planning process"},
+        {"type": "excludes", "value": "TODO", "description": "No placeholder text in output"}
+      ]
+    },
+    {
+      "id": "tc-2",
+      "prompt": "Create a planning spreadsheet that maps these dashboard requirements to our dbt staging models: user_id, session_date, page_views, conversions, revenue",
+      "input_files": [],
+      "assertions": [
+        {"type": "contains", "value": "mapping", "description": "Creates or discusses field mapping"},
+        {"type": "pattern", "value": "(?i)(target|source|transformation)", "description": "Includes mapping document columns"},
+        {"type": "contains", "value": "review", "description": "Mentions human review step"},
+        {"type": "excludes", "value": "FIXME", "description": "No dead content markers"}
+      ]
+    },
+    {
+      "id": "tc-3",
+      "prompt": "I need to build a dbt model from this reporting brief. Before writing SQL, help me validate which source fields actually exist in production.",
+      "input_files": [],
+      "assertions": [
+        {"type": "pattern", "value": "(?i)(validate|verify|check|describe|schema)", "description": "Discusses schema validation"},
+        {"type": "contains", "value": "incremental", "description": "Warns about incremental model column drift risk"},
+        {"type": "pattern", "value": "(?i)(sql|query)", "description": "Generates validation queries"},
+        {"type": "excludes", "value": "placeholder", "description": "No placeholder content"}
+      ]
+    },
+    {
+      "id": "tc-4",
+      "prompt": "Which dbt source tables should I use for a model that needs order revenue, customer tenure, and marketing channel? I'm on Databricks.",
+      "input_files": [],
+      "assertions": [
+        {"type": "pattern", "value": "(?i)(explore|search|investigate|codebase)", "description": "Explores the codebase for source models"},
+        {"type": "contains", "value": "join", "description": "Discusses how to join source tables"},
+        {"type": "pattern", "value": "(?i)(databricks|spark)", "description": "Acknowledges the warehouse dialect"}
+      ]
+    },
+    {
+      "id": "tc-5",
+      "prompt": "Help me plan a new dbt model. I have 4 target columns and all sources are obvious — is the full 7-phase process needed?",
+      "input_files": [],
+      "assertions": [
+        {"type": "pattern", "value": "(?i)(lightweight|simple|skip|fewer)", "description": "Recognizes this qualifies for the lightweight path"},
+        {"type": "excludes", "value": "must follow all 7 phases", "description": "Does not force full process on simple models"},
+        {"type": "pattern", "value": "(?i)(phase|checklist)", "description": "References the process framework"}
+      ]
+    },
+    {
+      "id": "tc-6",
+      "prompt": "I need to reverse-engineer the transformation logic to produce a target dataset from our dbt sources. The target has event-level grain with URL-extracted order IDs.",
+      "input_files": [],
+      "assertions": [
+        {"type": "pattern", "value": "(?i)(url|extract|fan.?out|gating)", "description": "Warns about URL-extracted join key fan-out risk"},
+        {"type": "contains", "value": "event", "description": "Discusses event-level grain considerations"},
+        {"type": "pattern", "value": "(?i)(row_number|qualify|deduplic)", "description": "Suggests deduplication for URL-extracted IDs"}
+      ]
+    }
+  ],
+  "edge_cases": [
+    {
+      "id": "ec-1",
+      "prompt": "Build me a dbt model",
+      "category": "minimal_input",
+      "expected_behavior": "Ask for target schema, requirements doc, or dashboard spec before proceeding",
+      "assertions": [{"type": "pattern", "value": "(?i)(\\?|what|which|schema|requirement|spec|target)", "description": "Asks for clarification about requirements"}]
+    },
+    {
+      "id": "ec-2",
+      "prompt": "Plan a dbt model from this schema but I don't have access to the dbt project codebase right now",
+      "category": "missing_deps",
+      "expected_behavior": "Proceed with planning but flag that source exploration and schema validation will need to happen later",
+      "assertions": [{"type": "pattern", "value": "(?i)(later|defer|when|available|access|codebase)", "description": "Acknowledges missing codebase gracefully"}]
+    },
+    {
+      "id": "ec-3",
+      "prompt": "I have a target schema with 200 columns across 30 source tables. Help me plan the dbt model.",
+      "category": "scale_extreme",
+      "expected_behavior": "Suggest breaking into multiple models or domains, apply full planning path",
+      "assertions": [{"type": "pattern", "value": "(?i)(split|break|multiple|domain|group)", "description": "Suggests decomposition for large schemas"}]
+    },
+    {
+      "id": "ec-4",
+      "prompt": "Plan a dbt model but the target schema document is in Japanese with some English column names",
+      "category": "unicode",
+      "expected_behavior": "Proceed with planning, use English column names as anchors, ask for translation help on descriptions",
+      "assertions": [{"type": "pattern", "value": "(?i)(column|field|name|translat|english)", "description": "Works with mixed-language input"}]
+    },
+    {
+      "id": "ec-5",
+      "prompt": "I uploaded an empty CSV file as my target schema. Help me plan the dbt model.",
+      "category": "malformed_input",
+      "expected_behavior": "Report that the schema is empty and ask for the actual requirements",
+      "assertions": [{"type": "pattern", "value": "(?i)(empty|no column|no field|missing|provide)", "description": "Detects empty input and asks for real requirements"}]
+    }
+  ]
+}

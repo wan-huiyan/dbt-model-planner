@@ -10,12 +10,20 @@ description: |
   (5) someone has a brief or spec document and wants a structured implementation plan before
   writing SQL. Also trigger when the user mentions "data sources schema", "source mapping",
   "transformation logic", "field mapping", or asks to "document a plan" for a dbt model.
+  Natural-language triggers: "help me plan a dbt model", "map these columns to source tables",
+  "create a planning spreadsheet for this model", "which staging models should I join",
+  "plan the source mappings for this fact table", "I have a target schema for a new dbt model",
+  "reverse-engineer the transformations needed", "validate source fields before writing SQL",
+  "build a dbt model from these dashboard requirements", "plan a dim/fact model from this brief".
+  Do NOT use for: SQL query optimization, data analysis insights, ETL pipeline orchestration,
+  dbt CI/CD setup, dbt migration, reviewing existing dbt models for bugs, database schema design,
+  dbt unit testing, Python data cleaning scripts, Looker definitions, or churn analysis.
   Covers the full lifecycle: codebase exploration → source mapping → planning spreadsheet
   with human review → investigation queries for open questions → schema validation →
   SQL model creation.
 author: Claude Code
-version: 2.1.0
-date: 2026-03-19
+version: 2.2.0
+date: 2026-03-24
 ---
 
 # dbt Model Planner
@@ -24,6 +32,20 @@ Turn schema requirements into production dbt models through a structured, iterat
 planning process. This skill ensures nothing gets built before the mapping is validated
 — saving rework and catching issues like missing columns, taxonomy mismatches, and
 grain misunderstandings early.
+
+## Composability
+
+**Input:** Requires a target schema (CSV, spreadsheet, brief, or inline description) and access to a dbt project codebase. Produces a structured planning document (CSV/Excel) with source-to-target field mappings, investigation queries (SQL file), and the final dbt model SQL + YAML schema.
+
+**Output:** Returns a planning spreadsheet, validation SQL queries, and production dbt model files (`.sql` + `.yml`).
+
+**Dependencies:** Requires git (for codebase exploration) and a dbt project with `dbt_project.yml`. Works with dbt Core v1.0+ and dbt Cloud. Supported versions: dbt-core >= 1.0, dbt-utils >= 0.8. Works with Databricks/Spark, Snowflake, BigQuery, Postgres, and Redshift dialects.
+
+**Error handling:** If source fields are missing from production tables, the skill flags them as blockers and suggests alternatives (upstream raw fields, full-refresh). If the grain assumption is wrong, it loops back to Phase 1 rather than patching. If the user lacks codebase access, the skill defers exploration and proceeds with available information.
+
+**Idempotency:** Safe to re-run on the same requirements — re-running produces an updated planning document without side effects. The skill is scoped to the `dbt-model-planner` namespace and does not modify existing project files until Phase 6 (model creation), which creates new files only.
+
+**Handoff:** For existing dbt model debugging, use `dbt-incremental-missing-columns` instead. For Snowplow event_order_id fan-out issues specifically, use `snowplow-event-order-id-leak`. After model creation, hand off to dbt test frameworks for ongoing validation. If the user instead needs to build an ETL pipeline, suggest using Airflow/Prefect tooling.
 
 ## Complexity Gate
 
