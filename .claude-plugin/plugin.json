@@ -1,7 +1,7 @@
 {
   "name": "dbt-model-planner",
   "description": "Plan and build dbt models from schema requirements through structured planning with human review, schema validation, and multi-dialect SQL generation.",
-  "version": "2.1.0",
+  "version": "2.3.0",
   "author": { "name": "Huiyan Wan" },
   "repository": "https://github.com/wan-huiyan/dbt-model-planner",
   "license": "MIT",

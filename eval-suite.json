@@ -1,6 +1,6 @@
 {
   "skill_name": "dbt-model-planner",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "created_by": "schliff",
   "triggers": [
     {
@@ -312,6 +312,66 @@
         {"type": "contains", "value": "event", "description": "Discusses event-level grain considerations"},
         {"type": "pattern", "value": "(?i)(row_number|qualify|deduplic)", "description": "Suggests deduplication for URL-extracted IDs"}
       ]
+    },
+    {
+      "id": "tc-7",
+      "prompt": "I need to plan a dbt model that combines data from Snowplow events and our orders table. The events have se_action and event_action fields. How should I handle the different event name fields?",
+      "input_files": [],
+      "assertions": [
+        {"type": "pattern", "value": "(?i)(coalesce|merge|unif)", "description": "Suggests COALESCE to unify event name fields"},
+        {"type": "pattern", "value": "(?i)(audit|separate|coverage)", "description": "Recommends auditing each field separately first"},
+        {"type": "pattern", "value": "(?i)(source|provenance|companion)", "description": "Mentions tracking which field the value came from"}
+      ]
+    },
+    {
+      "id": "tc-8",
+      "prompt": "Plan a dbt model for an MTA attribution model. The raw event table has millions of rows including performance timing events, heartbeats, and carousel interactions mixed with actual user clicks.",
+      "input_files": [],
+      "assertions": [
+        {"type": "pattern", "value": "(?i)(filter|noise|telemetry|blacklist)", "description": "Addresses event noise filtering"},
+        {"type": "pattern", "value": "(?i)(seed|csv|anti.?join)", "description": "Suggests seed table implementation for blacklist"},
+        {"type": "pattern", "value": "(?i)(review|sign.?off|stakeholder)", "description": "Requires human review of event classification"}
+      ]
+    },
+    {
+      "id": "tc-9",
+      "prompt": "I'm building a new dbt fact model. The source staging model is incremental and I suspect some columns were added after the last full-refresh. How should I handle this in my planning?",
+      "input_files": [],
+      "assertions": [
+        {"type": "pattern", "value": "(?i)(full.?refresh|sync_all_columns|schema.?change)", "description": "Recommends resolution approaches for column drift"},
+        {"type": "pattern", "value": "(?i)(describe|inspect|production|exist)", "description": "Suggests checking production schema"},
+        {"type": "pattern", "value": "(?i)(cascade|downstream|chain)", "description": "Warns about cascading effects to downstream models"}
+      ]
+    },
+    {
+      "id": "tc-10",
+      "prompt": "Help me plan a dbt model. I need a surrogate key and I'm on Snowflake. The model grain is order_id + product_id. How should I structure the primary key and tests?",
+      "input_files": [],
+      "assertions": [
+        {"type": "pattern", "value": "(?i)(surrogate|generate_surrogate_key|md5)", "description": "Discusses surrogate key generation"},
+        {"type": "pattern", "value": "(?i)(unique|not_null)", "description": "Recommends key column tests"},
+        {"type": "pattern", "value": "(?i)(unique_combination_of_columns|component|dimension)", "description": "Recommends combination test on grain columns"}
+      ]
+    },
+    {
+      "id": "tc-11",
+      "prompt": "I need to plan a dbt model. The target has both detail-level order rows and aggregate summary metrics. Should this be one model or multiple?",
+      "input_files": [],
+      "assertions": [
+        {"type": "pattern", "value": "(?i)(split|separate|multiple|two)", "description": "Suggests splitting into separate models"},
+        {"type": "pattern", "value": "(?i)(grain|detail|aggregate)", "description": "Discusses grain mismatch between detail and aggregate"},
+        {"type": "pattern", "value": "(?i)(200|line|reusab)", "description": "References splitting criteria"}
+      ]
+    },
+    {
+      "id": "tc-12",
+      "prompt": "Plan a new dbt model for our project. I notice the project has CLAUDE.md and CONTRIBUTING.md files. Should I check those first?",
+      "input_files": [],
+      "assertions": [
+        {"type": "pattern", "value": "(?i)(convention|style|pattern|rule)", "description": "Discusses mining project conventions"},
+        {"type": "pattern", "value": "(?i)(dbt_project|packages|sqlfluff)", "description": "References project config files to read"},
+        {"type": "pattern", "value": "(?i)(naming|branch|pr|review)", "description": "Mentions specific conventions to extract"}
+      ]
     }
   ],
   "edge_cases": [
@@ -349,6 +409,20 @@
       "category": "malformed_input",
       "expected_behavior": "Report that the schema is empty and ask for the actual requirements",
       "assertions": [{"type": "pattern", "value": "(?i)(empty|no column|no field|missing|provide)", "description": "Detects empty input and asks for real requirements"}]
+    },
+    {
+      "id": "ec-6",
+      "prompt": "Plan a dbt model but my team uses a custom macro instead of dbt_utils.generate_surrogate_key. We use our own hash_key() macro.",
+      "category": "custom_tooling",
+      "expected_behavior": "Adapt to use the team's custom macro instead of assuming dbt_utils",
+      "assertions": [{"type": "pattern", "value": "(?i)(custom|macro|hash_key|project|convention)", "description": "Adapts to project-specific tooling"}]
+    },
+    {
+      "id": "ec-7",
+      "prompt": "I need to plan a dbt model but the source data is in a different warehouse than where the model will run. Source is in BigQuery, target project is on Snowflake.",
+      "category": "cross_warehouse",
+      "expected_behavior": "Flag the cross-warehouse scenario, discuss data movement options, and use target dialect for SQL generation",
+      "assertions": [{"type": "pattern", "value": "(?i)(cross|different|warehouse|dialect|bigquery|snowflake)", "description": "Acknowledges cross-warehouse complexity"}]
     }
   ]
 }
