@@ -1,4 +1,5 @@
 # dbt Model Planner
+[![GitHub release](https://img.shields.io/github/v/release/wan-huiyan/dbt-model-planner)](https://github.com/wan-huiyan/dbt-model-planner/releases) [![Claude Code](https://img.shields.io/badge/Claude_Code-skill-orange)](https://claude.com/claude-code) [![license](https://img.shields.io/github/license/wan-huiyan/dbt-model-planner)](LICENSE) [![last commit](https://img.shields.io/github/last-commit/wan-huiyan/dbt-model-planner)](https://github.com/wan-huiyan/dbt-model-planner/commits)
 
 A Claude Code skill that turns schema requirements into production dbt models through a structured, iterative planning process with human review checkpoints.
 
