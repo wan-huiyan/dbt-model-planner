@@ -87,11 +87,11 @@ The skill includes 7 recommended conventions verified against official dbt docs:
 
 | Version | Changes |
 |---------|---------|
-| 2.2.0 | Enrich trigger description, add eval suite, add composability metadata (schliff score: 61.4 → 82.7) |
+| 2.2.0 | Enrich trigger description, add eval suite, add composability metadata |
 
 ## Acknowledgements
 
-Trigger accuracy and eval suite improved using [schliff](https://github.com/Zandereins/schliff) — an autonomous skill scoring and improvement framework (composite score: 61.4 → 82.7).
+Trigger accuracy and eval suite improved using [schliff](https://github.com/Zandereins/schliff) — an autonomous skill scoring and improvement framework.
 
 ## License
 
