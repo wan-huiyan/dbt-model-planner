@@ -79,15 +79,27 @@ The skill includes 7 recommended conventions verified against official dbt docs:
 | ELSE clause in all CASE taxonomy mappings | [SQL best practices](https://www.getgalaxy.io/learn/glossary/case-when-with-null-handling-in-sql) |
 | Deterministic tie-breakers for ROW_NUMBER | Best practice |
 
+## Requirements
+
+- Claude Code v1.0+
+- dbt project (any supported warehouse)
+- Access to production schema via DESCRIBE or INFORMATION_SCHEMA
+
+## Limitations
+
+- Human review at the planning stage is required — fully autonomous model generation is intentionally out of scope
+- Best for models with 5+ target fields; simpler models don't need the full 7-phase process
+- Assumes dbt project follows standard conventions (models/, sources.yml, etc.)
+
 ## Related Skills
 
 - [agent-review-panel](https://github.com/wan-huiyan/agent-review-panel) — Multi-agent adversarial review (used to review this skill)
 
 ## Version History
 
-| Version | Changes |
-|---------|---------|
-| 2.2.0 | Enrich trigger description, add eval suite, add composability metadata |
+| Version | Date | Changes |
+|---------|------|---------|
+| 2.2.0 | 2026-03 | Enrich trigger description, add eval suite, add composability metadata |
 
 ## Acknowledgements
 
