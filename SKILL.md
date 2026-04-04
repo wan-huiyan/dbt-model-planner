@@ -1,671 +1,297 @@
 ---
 name: dbt-model-planner
 description: |
-  Plan and build dbt models from schema requirements, dashboard specs, or reporting briefs.
-  Use this skill whenever: (1) someone provides a target schema, CSV spec, or dashboard
-  requirements and asks to build a dbt model, (2) someone needs to map required dimensions
-  and metrics to existing source tables in a dbt project, (3) someone asks "which source
-  tables should I use for this report/dashboard/model?", (4) someone wants to reverse-engineer
-  what transformations are needed to produce a target dataset from existing dbt sources,
-  (5) someone has a brief or spec document and wants a structured implementation plan before
-  writing SQL. Also trigger when the user mentions "data sources schema", "source mapping",
-  "transformation logic", "field mapping", or asks to "document a plan" for a dbt model.
-  Natural-language triggers: "help me plan a dbt model", "map these columns to source tables",
-  "create a planning spreadsheet for this model", "which staging models should I join",
-  "plan the source mappings for this fact table", "I have a target schema for a new dbt model",
-  "reverse-engineer the transformations needed", "validate source fields before writing SQL",
-  "build a dbt model from these dashboard requirements", "plan a dim/fact model from this brief".
-  Do NOT use for: SQL query optimization, data analysis insights, ETL pipeline orchestration,
-  dbt CI/CD setup, dbt migration, reviewing existing dbt models for bugs, database schema design,
-  dbt unit testing, Python data cleaning scripts, Looker definitions, or churn analysis.
-  Covers the full lifecycle: codebase exploration → source mapping → planning spreadsheet
-  with human review → investigation queries for open questions → schema validation →
-  SQL model creation.
+  Plan and build NEW dbt models from schema requirements, dashboard specs, or reporting briefs.
+  Trigger when: (1) user provides a target schema/CSV spec/dashboard requirements and asks to
+  build a dbt model, (2) user needs to map dimensions and metrics to existing dbt source tables,
+  (3) user asks "which source tables should I use for this report/dashboard/model?", (4) user
+  wants to reverse-engineer transformations to produce a target dataset from dbt sources,
+  (5) user has a brief/spec and wants a structured plan before writing SQL.
+  Trigger phrases: "plan a dbt model", "map columns to source tables", "create a planning
+  spreadsheet", "which staging models should I join", "plan source mappings for this fact table",
+  "I have a target schema for a new dbt model", "reverse-engineer the transformations needed",
+  "validate source fields before writing SQL", "build a dbt model from dashboard requirements",
+  "plan a dim/fact model from this brief", "data sources schema", "source mapping",
+  "transformation logic for a dbt model", "field mapping for a dbt model",
+  "document a plan for a dbt model".
+  Do NOT trigger for: SQL query optimization or performance tuning, data analysis or insight
+  generation, ETL/ELT pipeline orchestration (Airflow, Prefect, Dagster), dbt CI/CD or GitHub
+  Actions setup, dbt project migration between warehouses, reviewing or debugging existing dbt
+  model SQL, database schema design for applications or microservices, dbt unit testing or
+  test-writing, Python data cleaning or transformation scripts, Looker/Tableau/BI tool
+  definitions, churn analysis or customer analytics, ORM data modeling (Prisma, SQLAlchemy),
+  creating new warehouse tables without dbt context.
 author: Claude Code
-version: 2.2.0
-date: 2026-03-24
+version: 2.3.0
+date: 2026-03-25
+consumes_from: ["target schema (CSV/spreadsheet/brief)", "dbt project codebase"]
+hands_off_to: ["dbt test frameworks", "dbt-incremental-missing-columns", "snowplow-event-order-id-leak"]
+output_contract: ["planning spreadsheet (CSV/Excel)", "investigation SQL file", "dbt model .sql + .yml"]
 ---
 
 # dbt Model Planner
 
-Turn schema requirements into production dbt models through a structured, iterative
-planning process. This skill ensures nothing gets built before the mapping is validated
-— saving rework and catching issues like missing columns, taxonomy mismatches, and
-grain misunderstandings early.
+Turn schema requirements into production dbt models through structured, iterative planning.
+Nothing gets built before mappings are validated -- catching missing columns, taxonomy mismatches,
+and grain misunderstandings early.
 
 ## Composability
 
-**Input:** Requires a target schema (CSV, spreadsheet, brief, or inline description) and access to a dbt project codebase. Produces a structured planning document (CSV/Excel) with source-to-target field mappings, investigation queries (SQL file), and the final dbt model SQL + YAML schema.
+**Input:** Target schema (CSV, spreadsheet, brief, inline) + dbt project codebase.
 
-**Output:** Returns a planning spreadsheet, validation SQL queries, and production dbt model files (`.sql` + `.yml`).
+**Output:** Planning spreadsheet, validation SQL, dbt model `.sql` + `.yml`.
 
-**Dependencies:** Requires git (for codebase exploration) and a dbt project with `dbt_project.yml`. Works with dbt Core v1.0+ and dbt Cloud. Supported versions: dbt-core >= 1.0, dbt-utils >= 0.8. Works with Databricks/Spark, Snowflake, BigQuery, Postgres, and Redshift dialects.
+**Dependencies:** Requires git (for codebase exploration) and a dbt project with `dbt_project.yml`. Supported versions: dbt-core >= 1.0, dbt-utils >= 0.8. Works with Databricks/Spark v3+, Snowflake, BigQuery, Postgres, and Redshift dialects.
 
-**Error handling:** If source fields are missing from production tables, the skill flags them as blockers and suggests alternatives (upstream raw fields, full-refresh). If the grain assumption is wrong, it loops back to Phase 1 rather than patching. If the user lacks codebase access, the skill defers exploration and proceeds with available information.
+**Error handling:** Missing source fields: flag as blockers, suggest alternatives. Wrong grain: loop to Phase 1. No codebase access: defer exploration.
 
-**Idempotency:** Safe to re-run on the same requirements — re-running produces an updated planning document without side effects. The skill is scoped to the `dbt-model-planner` namespace and does not modify existing project files until Phase 6 (model creation), which creates new files only.
+**Idempotency:** Safe to re-run. Creates new files only (Phase 6). Scoped to `dbt-model-planner` namespace.
 
-**Handoff:** For existing dbt model debugging, use `dbt-incremental-missing-columns` instead. For Snowplow event_order_id fan-out issues specifically, use `snowplow-event-order-id-leak`. After model creation, hand off to dbt test frameworks for ongoing validation. If the user instead needs to build an ETL pipeline, suggest using Airflow/Prefect tooling.
+**Handoff:** For existing dbt model debugging, then use `dbt-incremental-missing-columns` instead. For Snowplow fan-out, then use `snowplow-event-order-id-leak`. After model creation, hand off to dbt test frameworks. For ETL pipelines, use Airflow/Prefect.
 
 ## Complexity Gate
 
-Not every model needs the full 7-phase treatment. Before starting, assess complexity:
-
-**Lightweight path** (skip to Phase 6 with a checklist):
-- Fewer than 8 target fields
-- All source tables are known and obvious
-- Grain is clear and confirmed with the consumer
-- No taxonomy mappings or complex joins needed
-
-**Full path** (all 7 phases):
-- 8+ target fields, or any ambiguity in source mapping
-- Multiple source systems with different naming conventions
-- Grain needs discussion or could be misunderstood
-- Previous work exists that may be reusable
-
-## Why This Process Matters
-
-Building a dbt model directly from a requirements doc usually leads to rework because:
-- Target fields don't map 1:1 to source columns (they need transformation logic)
-- Source tables may have stale schemas (especially incremental models — see below)
-- Channel/category taxonomies differ between source systems
-- The grain of the target model may not match available source grains
-- Previous work may already solve parts of the problem
-
-This skill front-loads discovery into a planning phase with human review checkpoints,
-so by the time you write SQL, every field mapping is validated.
+| Criteria | Lightweight (skip to Phase 6) | Full (all 7 phases) |
+|----------|-------------------------------|---------------------|
+| Fields | < 8 target fields | 8+ fields or any ambiguity |
+| Sources | All known and obvious | Multiple systems, different naming |
+| Grain | Clear and confirmed | Needs discussion |
+| Complexity | No taxonomy mappings needed | Complex joins, reusable prior work |
 
 ## The Process
 
 ### Phase 1: Understand the Requirements
 
-Read the target schema document (CSV, spreadsheet, brief, or inline description).
-For each target field, extract:
+Read the target schema. For each field, extract:
 - **Column name** and description
-- **Example values** (these reveal data types and expected formats)
-- **Implied grain** (is this per-event, per-session, per-user, per-order?)
-- **Relationships** between fields (e.g., "transaction_id is only populated for order events")
+- **Example values** (reveal data types and formats)
+- **Implied grain** (per-event, per-session, per-user, per-order?)
+- **Relationships** (e.g., "transaction_id only populated for order events")
 
-Determine the **model grain** early — it drives every source selection decision.
-Ask the user if ambiguous. Common grains: event-level, session-level, user × time-period,
-order-level, aggregated dimension combinations.
+Determine the **model grain** early -- it drives every source selection. Ask if ambiguous.
 
 ### Phase 2: Context Gathering & Codebase Exploration
 
-Before exploring source models, systematically gather project context that
-will shape every decision downstream. Skipping this leads to models that
-compile but violate project conventions, miss existing patterns, or use
-stale schemas.
+#### Step 1: Project Configuration
 
-#### Step 1: Project Configuration Discovery
+Auto-read: `dbt_project.yml`, `packages.yml`, `.sqlfluff`, `.gitignore`. Check `profiles.yml` (often at `~/.dbt/`; absent in dbt Cloud).
 
-Auto-read these files:
-
-```
-dbt_project.yml     → materialization defaults, schema naming, tags, vars
-packages.yml        → installed packages (dbt_utils, elementary, etc.)
-.sqlfluff           → linting rules and dialect
-.gitignore          → what file types are excluded from version control
-```
-
-Also check for `profiles.yml` in the project root, but note it often lives
-in `~/.dbt/profiles.yml` instead (and doesn't exist at all in dbt Cloud).
-The `profile:` key in `dbt_project.yml` tells you the warehouse type.
-
-Extract and note:
-- **Warehouse dialect** (Databricks/Spark, Snowflake, BigQuery, Redshift, Postgres)
-  — this affects SQL syntax throughout the skill
-- Default materialization strategy and incremental strategy
-- Schema naming convention (e.g., `production_served__<layer>`)
-- Catalog/database name
-- Any project-level vars that affect model behavior (e.g.,
-  `surrogate_key_treat_nulls_as_empty_strings`)
-- Package versions (especially dbt_utils — API differs across versions)
+Extract: warehouse dialect, materialization defaults, schema naming, catalog/database, project vars (e.g., `surrogate_key_treat_nulls_as_empty_strings`), package versions.
 
 #### Step 2: Convention Mining
 
-Search for project-specific conventions that override generic best practices.
-These are the rules that get PRs rejected if violated:
-
-```
-1. Read project convention docs (CLAUDE.md, CONTRIBUTING.md, DEVELOPMENT.md)
-2. Read project memory files (feedback type — these are past PR corrections)
-3. Check .github/pull_request_template.md for review checklist items
-4. Check recent merged PRs (gh pr list --state merged, or git log) for
-   naming/style patterns
-```
-
-Compile a **Convention Brief** noting:
-- Branch naming convention (e.g., `{TICKET-ID}/{description}`)
-- SQL style rules beyond sqlfluff (CTE naming, alias conventions, etc.)
-- Model naming patterns (fact_*, dim_*, stg_*, bi_*)
-- Testing conventions (what tests are expected on which columns)
-- PR process (base branch, review requirements, CI checks)
-- Any "never do this" rules from feedback memories
+Read convention docs (CLAUDE.md, CONTRIBUTING.md), memory files, PR templates, recent merged PRs. Compile a **Convention Brief**: branch naming, SQL style, model naming (fact_*, dim_*, stg_*), testing conventions, PR process, "never do this" rules.
 
 #### Step 3: Source Model Exploration
 
-Use subagents for parallel exploration (or explore sequentially if subagents
-are not available). Investigate:
-
-1. **Existing models in the target domain** — check if similar models already exist
-   (e.g., `models/bi/campaign/` for campaign-related work)
-2. **Core/staging models** that contain the source fields — read the SQL to understand
-   available columns, joins, and transformation logic
-3. **Previous work** — the user may point to a separate directory or branch with
-   prior implementations. Read these thoroughly — they often contain reusable
-   transformation patterns (channel mappings, discount bucketing, tenure groupings, etc.)
-4. **Schema files (.yml)** — for documented column descriptions and data types
+Investigate (use subagents for parallel exploration when available):
+1. **Existing models** in the target domain
+2. **Core/staging models** with source fields -- read SQL for columns, joins, logic
+3. **Previous work** -- reusable transformation patterns (channel mappings, bucketing, etc.)
+4. **Schema files (.yml)** -- column descriptions and data types
 
 #### Step 4: Source Lineage & Risk Flags
 
-For each source model identified in Step 3, check:
+For each source model, check:
 
-- **Materialization type**: Is it `incremental` or `microbatch`? If yes, flag it
-  as a schema drift risk — columns in the SQL may not exist in production.
-  Add to the validation checklist for Phase 5.
-- **Grain**: What does one row represent? Document explicitly (e.g., "one row per
-  event per user" vs "one row per session").
-- **Join keys**: What fields link this model to others?
-- **Freshness**: When was the model last updated? Check metadata timestamp columns
-  (common names: `_row_updated_at_`, `_loaded_at`, `updated_at`, `dbt_updated_at`).
+| Check | Why |
+|-------|-----|
+| Materialization (`incremental`/`microbatch`?) | Schema drift risk -- SQL columns may not exist in production |
+| Grain (one row per what?) | Document explicitly |
+| Join keys | What links models together |
+| Freshness (`_row_updated_at_`, `updated_at`, etc.) | Stale data detection |
 
-#### Step 5: Stakeholder Alignment Check
+#### Step 5: Stakeholder Alignment
 
-Before proceeding to the planning doc, ask the user to confirm with the end
-consumer (this requires human action — prompt the user to do it):
+Prompt the user to confirm with the end consumer:
+1. What is the grain? (one row per what?)
+2. What are the goal/conversion events?
+3. How will they use the output? (screenshot of downstream format is ideal)
+4. Will they transform the output further or consume it directly?
 
-1. **What is the grain?** (one row per what?)
-2. **What are the goal/conversion events?** (if applicable)
-3. **How will they use the output?** A screenshot or example of their
-   downstream input format is worth more than a 20-column spec.
-4. **What does the end consumer's workflow look like?** Will they transform the
-   output further, or consume it directly in a dashboard/model?
-
-This 5-minute conversation prevents the most expensive rework — building at
-the wrong grain or including fields the consumer doesn't need. If the grain
-assumption turns out to be wrong later (e.g., event-level vs session-level),
-loop back to Phase 1 — don't try to patch Phase 3.
-
-Compile all findings into a **Context Brief** that informs the planning document.
+If grain is wrong later, loop back to Phase 1 -- do not patch Phase 3.
 
 ### Phase 3: Create the Planning Document
 
-Produce a structured mapping document (CSV or Excel) with these columns:
+Produce a CSV/Excel mapping with these columns:
 
 | Column | Purpose |
 |--------|---------|
-| **Target Column** | Field name from the requirements |
+| **Target Column** | Field name from requirements |
 | **Description** | What the field represents |
 | **Example Values** | From the requirements doc |
 | **Source Model(s)** | Which dbt model(s) to source from |
-| **Source Field(s)** | Specific column name(s) in the source |
-| **Transformation Logic** | How to derive the target from source (SQL pseudocode) |
-| **Reusable From Previous Work** | Reference to existing code that implements this logic |
-| **Questions / Caveats** | Ambiguities, risks, or things that need human confirmation |
-| **Review Feedback** | **LEAVE BLANK** — this is for the human reviewer |
+| **Source Field(s)** | Specific column name(s) (e.g., `core.order.gross_revenue`) |
+| **Transformation Logic** | SQL pseudocode to derive target from source |
+| **Reusable From Previous Work** | Reference with line numbers (e.g., `fact_campaign_order.sql:94`) |
+| **Questions / Caveats** | Specific questions, not vague flags |
+| **Review Feedback** | **LEAVE BLANK** for human reviewer |
 | **Status** | CONFIRMED / ACTION NEEDED / PENDING |
 
-**Writing good entries:**
-- Be specific about source fields: `core.order.gross_revenue`, not just "order table"
-- Include line numbers when referencing reusable code: `fact_campaign_order.sql line 94`
-- In Questions/Caveats, be explicit about what you need answered — don't just flag
-  vaguely. "Which revenue definition: gross_revenue (incl shipping) or recipe_revenue
-  (excl shipping)?" is better than "revenue TBD"
-- When multiple source options exist, list them as Option A / Option B with trade-offs
+**Rules:** Be specific about source fields. Ask explicit questions ("Which revenue: gross_revenue incl shipping or recipe_revenue excl shipping?"). List Option A / Option B with trade-offs when multiple sources exist.
 
-**Format choice:**
-- Default to CSV (universally readable, easy to version control)
-- If the user prefers Excel/Google Sheets, create a well-formatted spreadsheet
-  with headers, column widths, and conditional formatting for Status column
-- Markdown table is acceptable for quick inline reviews
+**Format:** Default CSV. Excel/Sheets if user prefers. Markdown for quick inline reviews.
 
-Save the planning document and present a summary to the user highlighting:
-- Fields that mapped cleanly (high confidence)
-- Fields that need decisions (multiple options or ambiguous requirements)
-- Fields that are problematic (no clear source, taxonomy mismatch, etc.)
+Present summary: high-confidence mappings, fields needing decisions, problematic fields.
 
 ### Phase 4: Human Review Loop
 
-This is the critical step that prevents wasted implementation effort.
+Present the plan. Handle feedback:
 
-Present the plan to the user and ask them to add feedback in the **Review Feedback**
-column. Common feedback patterns and how to handle them:
+| Feedback | Action |
+|----------|--------|
+| "looks good" | Mark CONFIRMED |
+| "ignore" | Mark out-of-scope |
+| "check if X exists" | Write investigation query (Phase 5) |
+| "use X instead of Y" | Update source/logic, mark CONFIRMED |
+| "not sure" | Keep ACTION NEEDED |
+| "add a fallback" | Add COALESCE pattern |
+| Correction to assumption | Update plan, check cascading effects |
+| Grain/scope change | **Loop to Phase 1** |
 
-| Feedback Pattern | Action |
-|------------------|--------|
-| "looks good" / "agree" | Mark as CONFIRMED, no changes needed |
-| "ignore" | Remove from scope or mark as out-of-scope |
-| "check if X exists" / "can you verify Y?" | Write an investigation query (Phase 5) |
-| "use X instead of Y" | Update source/logic, mark as CONFIRMED |
-| "I'm not sure about this" | Flag for investigation, keep as ACTION NEEDED |
-| "can we add a fallback?" | Update transformation logic with COALESCE pattern |
-| Correction to your assumption | Update the plan, check if correction affects other rows |
-| Fundamental grain/scope change | **Loop back to Phase 1** — don't patch, replant |
-
-After incorporating feedback, update the planning document and re-present any
-fields that changed status. Iterate until all fields are CONFIRMED or explicitly
-out of scope.
+Iterate until all fields are CONFIRMED or out of scope.
 
 ### Phase 5: Schema Validation & Investigation Queries
 
-Before writing the model SQL, validate that source fields actually exist in
-production. This catches a common issue with incremental dbt models where columns
-are defined in SQL but not materialised.
-
-**Step 1: Validate source schemas (3-part check)**
-
-For each source table, run three checks — not just column existence:
+**Step 1: 3-part source validation** (for each source table)
 
 ```sql
--- 1. Column existence (dialect-specific):
---    Databricks/Spark: DESCRIBE <catalog>.<schema>.<table>;
---    Snowflake:        DESCRIBE TABLE <database>.<schema>.<table>;
---    BigQuery:         SELECT column_name, data_type
---                      FROM <project>.<dataset>.INFORMATION_SCHEMA.COLUMNS
---                      WHERE table_name = '<table>';
-
--- 2. Column population (is it actually filled, not just present?):
-SELECT
-    COUNT(*) AS total_rows,
-    COUNT(<field>) AS non_null_count,
+-- 1. Column existence (dialect-specific — see references/dialect-patterns.md)
+-- 2. Column population:
+SELECT COUNT(*) AS total_rows, COUNT(<field>) AS non_null,
     ROUND(COUNT(<field>) * 100.0 / COUNT(*), 1) AS pct_populated
-FROM <table>
-WHERE <date_col> >= '<recent_date>';
-
--- 3. Data freshness (is the table up to date?):
-SELECT MAX(<timestamp_col>) AS last_updated, COUNT(*) AS total_rows
-FROM <table>;
+FROM <table> WHERE <date_col> >= '<recent_date>';
+-- 3. Data freshness:
+SELECT MAX(<timestamp_col>) AS last_updated, COUNT(*) AS total_rows FROM <table>;
 ```
 
-A column can exist but be 100% NULL (partial backfill) or contain stale data
-(last refresh weeks ago). All three checks must pass.
+All three must pass. Flag fields that exist in dbt SQL but not in production.
 
-Cross-reference the results against every source field in the plan.
-Flag any field that exists in the dbt SQL code but NOT in the production table.
+**Step 2: Investigation queries** for ACTION NEEDED items
 
-**Step 2: Write investigation queries for open questions**
+| Pattern | Query |
+|---------|-------|
+| Coverage | `SELECT COUNT(*), COUNT(field), COUNT(DISTINCT field) FROM table` |
+| Distribution | `SELECT field, COUNT(*) GROUP BY field ORDER BY 2 DESC` |
+| Fan-out | Compare `COUNT(*)` before/after LEFT JOIN |
+| Filter impact | Count rows excluded by WHERE clause |
 
-For each ACTION NEEDED item, write a targeted SQL query. Common patterns:
+When user runs queries manually: combine into UNION ALL with `query_id` discriminator. One query = one download.
 
-- **Coverage check**: `SELECT COUNT(*), COUNT(field), COUNT(DISTINCT field) FROM table`
-- **Value distribution**: `SELECT field, COUNT(*) GROUP BY field ORDER BY 2 DESC`
-- **Join fan-out validation**: Compare `COUNT(*)` before and after a LEFT JOIN —
-  if the count increases, you have a 1:N fan-out
-- **Filter impact**: How many rows does a WHERE clause exclude?
-
-Save all queries in a single SQL file with:
-- Comment header explaining the purpose
-- Context linking back to the planning doc row
-- Status marker (PENDING / DONE)
-
-**Important: When the user runs queries manually (no MCP/direct DB connection),
-combine related queries into a single UNION ALL result set** with a discriminator
-column (e.g., `query_id` or `field_source`). One query = one download = one file.
-Only split into separate queries when schemas are incompatible or cost is prohibitive.
-
-**Step 3: Incorporate results**
-
-After the user runs the queries (or you run them via MCP/tool):
-- Update the planning document with findings
-- Resolve ACTION NEEDED items → CONFIRMED or flag new issues
-- Add a **Source Validated** column to the planning doc confirming each field
-  exists in production (with data type from DESCRIBE output)
-- If a source field doesn't exist in production, find alternatives:
-  - Use upstream raw fields and replicate the transformation logic
-  - Check if a related field exists with similar semantics
-  - Flag as a blocker requiring a dbt full-refresh
+**Step 3: Incorporate results** -- update planning doc, resolve ACTION NEEDED items, add Source Validated column. Missing fields: try upstream raw fields, related fields, or flag as blocker requiring full-refresh.
 
 ### Phase 6: Build the dbt Model
 
-Once all fields are CONFIRMED, write the SQL model following the project's conventions.
-
-**Structure the model as CTEs:**
+Structure as CTEs with refs at top:
 
 ```sql
 {{ config(materialized='table', tags=['domain_tag']) }}
 
--- Source CTEs (refs at top for lineage visibility)
 with source_a as (
     select * from {{ ref('source_model_a') }}
 ),
-
--- Transformation CTEs (one per logical step)
 transformed as (
     select
         source_a.field_1,
-        case
-            when source_a.category in ('a', 'b') then 'Group 1'
-            else 'Unmapped'  -- always include ELSE for taxonomy mappings
-        end as category_group,
-        source_b.revenue
+        case when source_a.category in ('a', 'b') then 'Group 1'
+            else 'Unmapped'
+        end as category_group
     from source_a
-    left join source_b
-        on source_a.key = source_b.key
+    left join source_b on source_a.key = source_b.key
 ),
-
 final as (
     select * from transformed
 )
-
 select * from final
 ```
 
-**Recommended conventions (apply to every dbt project):**
+**Conventions checklist:**
 
-1. **Refs at top:** List all `{{ ref('...') }}` source CTEs at the top of the file
-   with `select * from {{ ref('...') }}` so data lineage is immediately visible.
-   Keep all transformation logic in later CTEs — never mix source selection with
-   business logic. (Note: some teams prefer explicit column lists in source CTEs
-   for stricter contracts — follow the project's existing pattern.)
+| # | Rule |
+|---|------|
+| 1 | **Refs at top**: All `{{ ref() }}` source CTEs at top with `select *`. Transformation logic in later CTEs only |
+| 2 | **Surrogate PK**: `generate_surrogate_key()` on grain dimensions. Test: `unique` + `not_null` on key, `unique_combination_of_columns` on component dimensions |
+| 3 | **GROUP BY grain only**: Use `ANY_VALUE()`/`first()`/`MIN()` for 1:1 dimensions (see `references/dialect-patterns.md`) |
+| 4 | **No unnecessary dedup**: Check upstream uniqueness before adding `QUALIFY`/`DISTINCT` |
+| 5 | **Linting**: Follow project `.sqlfluff` rules |
+| 6 | **CASE needs ELSE**: Always `ELSE 'Unmapped'` or `ELSE original_field` for taxonomy mappings |
+| 7 | **Deterministic tie-breakers**: `ROW_NUMBER()` ORDER BY needs 2+ columns, second being a unique ID |
 
-2. **Surrogate primary key:** Add a primary key using
-   `{{ dbt_utils.generate_surrogate_key([...]) }}` (or `{{ dbt.generate_surrogate_key() }}`
-   for dbt Core 1.6+) composed of all grain-defining dimension columns. Name it
-   `[model_name]_sk` (dbt-labs convention) or `[model_name]_key` (also common).
-   In the companion YAML, add two separate tests:
-   - Column-level `unique` and `not_null` tests on the key column
-   - `dbt_utils.unique_combination_of_columns` on the **component dimension columns**
-     (not on the key itself — that would be redundant with the `unique` test)
+See `references/dialect-patterns.md` for warehouse-specific SQL syntax.
 
-3. **Group only by grain dimensions:** In GROUP BY, include only columns that define
-   the output grain. For dimensions that are 1:1 with the grain, use a non-deterministic
-   aggregate in SELECT instead of adding to GROUP BY:
-   - Spark/Databricks: `first(<col>)`
-   - Snowflake: `ANY_VALUE(<col>)`
-   - BigQuery: `ANY_VALUE(<col>)`
-   - Postgres/Redshift: `MIN(<col>)` (no ANY_VALUE)
-
-   This makes the intended grain explicit and prevents accidental grain changes.
-
-4. **No unnecessary deduplication:** Don't add `qualify row_number() over (...)` or
-   `distinct` on CTEs sourcing from upstream models that already guarantee uniqueness.
-   Check the upstream model first — if it's already deduplicated, the extra logic adds
-   cost and obscures intent.
-
-5. **Linting compliance:** Follow the project's sqlfluff rules (check `.sqlfluff` config
-   for overrides). Common rules: explicit `as` for aliases, one select target per line,
-   consistent indentation, no SQL reserved keywords as column identifiers.
-
-6. **CASE statements need ELSE:** For all taxonomy/classification CASE statements,
-   always include an ELSE clause — either `ELSE 'Unmapped'` (with a monitoring query to
-   detect new unmapped values) or `ELSE original_field` to preserve the raw value.
-   An incomplete CASE without ELSE silently produces NULL for unmatched values.
-
-7. **Deterministic tie-breakers:** For all `ROW_NUMBER()` / `QUALIFY` patterns, always
-   use at least two ORDER BY columns, with the second being a unique ID. A single
-   timestamp column is nondeterministic when ties exist.
-
-**Dialect-specific patterns (check your warehouse):**
-
-| Pattern | Spark/Databricks | Snowflake | BigQuery | Postgres/Redshift |
-|---------|-----------------|-----------|----------|-------------------|
-| Schema inspection | `DESCRIBE <catalog>.<schema>.<table>` | `DESCRIBE TABLE <db>.<schema>.<table>` | `INFORMATION_SCHEMA.COLUMNS` | `\d <table>` or `information_schema` |
-| Non-deterministic agg | `first(<col>)` | `ANY_VALUE(<col>)` | `ANY_VALUE(<col>)` | `MIN(<col>)` |
-| Surrogate key standalone | `md5(cast(coalesce(cast(col as string), '') as string))` | `MD5(col::varchar)` | `TO_HEX(MD5(CAST(col AS STRING)))` | `MD5(col::text)` |
-| 3-part table name | `catalog.schema.table` | `database.schema.table` | `project.dataset.table` | `schema.table` (2-part) |
-
-**Project-specific conventions (check these per project):**
-- Match the project's existing patterns (check dbt_project.yml for materialization,
-  tags, schema conventions)
-- Use `{{ ref() }}` for all model references
-- Add `current_timestamp() as _row_updated_at_` if the project convention includes it
-- Write a companion .yml schema file with column descriptions and tests
-- Check for project-specific model naming (e.g., period vs dim_calendar), alias
-  conventions (e.g., shipping_region → region), and filter patterns (rolling windows
-  vs hardcoded dates)
-
-**After writing the model:**
+**Project-specific**: Match existing patterns for materialization, tags, schema naming. Use `{{ ref() }}` always. Add `_row_updated_at_` if project convention. Write companion `.yml` with column descriptions and tests.
 
 ### Phase 7: Verify and QA
 
-Don't declare done after writing the SQL. Verification catches bugs that look
-correct on paper but fail with real data.
+**Step 1: Standalone verification query**
+- Replace `{{ ref() }}` with fully-qualified table names
+- Replace `generate_surrogate_key()` with dialect-specific hash
+- Add date filter + `LIMIT 100`
 
-**Step 1: Create a standalone verification query**
-- Replace `{{ ref('...') }}` with fully-qualified table names (see dialect table above)
-- Replace `{{ dbt_utils.generate_surrogate_key(...) }}` with the dialect-specific
-  hash equivalent (see dialect table above — and check if the project sets
-  `surrogate_key_treat_nulls_as_empty_strings` which changes the null sentinel)
-- Add a date filter to avoid full table scans
-- Add `LIMIT 100` for quick syntax validation
+**Step 2: Data quality inspection**
 
-**Step 2: Inspect the output for data quality issues**
-Common bugs that only surface with real data:
-- **NULL fields you expected populated** — check if the source field uses a
-  different name, or if COALESCE fallbacks are needed
-- **Fields populated on rows they shouldn't be** — especially when joining on
-  URL-extracted IDs (see "URL-Extracted Join Keys" below)
-- **Unexpected values** — enum fields with values not in your CASE statement
-  (this is why ELSE clauses matter)
-- **Row count inflation** — compare `COUNT(*)` before and after each LEFT JOIN
-  to catch fan-out from 1:N joins
+| Bug | Check |
+|-----|-------|
+| NULL fields expected populated | Source field name mismatch? Need COALESCE? |
+| Fields on wrong rows | URL-extracted ID fan-out? (see below) |
+| Unexpected enum values | CASE without ELSE? |
+| Row count inflation | `COUNT(*)` before vs after each LEFT JOIN |
 
-**Step 3: Write standalone QA queries**
-Each QA query should be self-contained (no dependency on materialised output).
-Key checks:
+**Step 3: QA queries** (self-contained, no dependency on materialized output)
 - NULL rates per column
-- Value distribution for computed fields (channel groupings, discount segments)
-- Join fan-out validation (count before vs after join)
-- Data freshness (`MAX(timestamp_col)` within expected window)
-- Single-entity journey trace (visual sanity check of one user's event sequence)
+- Value distribution for computed fields
+- Join fan-out validation
+- Data freshness check
+- Single-entity journey trace
 
-## Tips for Common Challenges
+## Common Challenges
 
 ### Taxonomy Mismatches
-When source systems use different category names (e.g., UTM tags vs promo channel
-categories), build the mapping CASE statement explicitly in the plan. Don't defer
-this to implementation — taxonomy decisions need human review. Always include an
-ELSE clause in the CASE to catch unmapped values.
+Build CASE mapping explicitly in the plan. Always include ELSE. Do not defer to implementation -- taxonomy decisions need human review.
 
 ### Incremental Model Column Drift
-dbt incremental models (`materialized='incremental'` or `microbatch`) silently
-omit new columns added to the SQL after initial materialization. The column
-exists in the code but not in the production table. This cascades: if model A
-is missing a column, every downstream incremental model (B, C) that selects
-from A will also be missing it.
+Incremental/microbatch models silently omit columns added after initial materialization. This cascades downstream.
 
-**Diagnosis:**
-1. Run schema inspection (dialect-specific) to confirm the column is missing
-2. `grep` the dbt SQL to confirm the column is defined in code
-3. Check `config(materialized=...)` — if incremental, this is likely the cause
-4. Check git log: was the column added after the last `--full-refresh`?
+**Diagnosis:** Run schema inspection -> grep dbt SQL -> check `materialized` config -> check git log for column addition date.
 
-**Resolution (pick one):**
-- **Full refresh** (preferred): `dbt run --full-refresh --select <model>`.
-  Must refresh the entire chain from root to leaves in dependency order.
-- **Replicate upstream logic** (when you can't refresh): If the missing column
-  is computed from raw fields that DO exist, replicate the transformation in
-  your model. E.g., if `utm_classification` (computed CASE) is missing but
-  `mkt_source` and `mkt_medium` exist, build the CASE logic inline.
-- **Preventive config**: `on_schema_change='sync_all_columns'` in the model
-  config. But this only applies to future runs — doesn't retroactively add
-  columns from before the config was set.
-
-**Key gotcha:** `on_schema_change='sync_all_columns'` may already be a project
-default in `dbt_project.yml`, but it only takes effect for runs AFTER the config
-was active. Tables materialized before it was set still have the old schema.
-Even with this config enabled, the issue can still occur.
+**Resolution:** (1) Full refresh in dependency order (preferred), (2) Replicate upstream logic from raw fields, (3) Preventive: `on_schema_change='sync_all_columns'` (only applies to future runs).
 
 ### Multiple Source Options
-When a field could come from multiple sources (e.g., geo_country from IP vs
-shipping_country from orders), document the trade-offs in the plan and recommend
-a COALESCE fallback pattern. Let the human decide priority order.
+Document trade-offs in the plan. Recommend COALESCE fallback. Let the human decide priority order.
 
 ### Grain Mismatches
-If the target grain is finer than the source (e.g., event-level target but
-session-level source), you need to join back to the finer-grained table.
-If coarser, decide on the aggregation strategy (SUM, COUNT DISTINCT, etc.)
-and document it in the plan.
+Finer target than source: join back to fine-grained table. Coarser: define aggregation strategy. Multiple grains in requirements: split into separate models. Split if >200 lines or mixed detail/aggregate grains.
 
-When requirements decompose into multiple models (e.g., a detail fact + an
-aggregate), note this during planning. Criteria for splitting: if the target
-has both detail and aggregate grains, if transformation logic is reusable
-across models, or if a single model exceeds ~200 lines.
+### URL-Extracted Join Keys
 
-### URL-Extracted Join Keys (Critical for Event Data)
+URL-extracted IDs (e.g., order_id from `/menu/{8-digit-id}`) appear on ALL page views in the order flow, not just conversions. Joining order tables on these IDs silently fans out order dimensions to non-conversion events.
 
-Some event tracking systems extract IDs from URLs via regex. For example,
-Snowplow computes `event_order_id` from any URL matching `/menu/{8-digit-id}`:
+**Fix -- 3-step gating:**
 
 ```sql
-cast(coalesce(
-    event_json.order_id,
-    split(regexp_extract(page_urlpath, '\/menu\/[0-9]{8}', 0), '/')[2]
-) as bigint) as event_order_id
-```
-
-This means **every page view in the order flow** gets the order ID — not just
-the completion event. If you LEFT JOIN an order table on this field, order
-dimensions (revenue, discount, box_mix) silently fan out to ALL events in the
-session. The query runs without errors and row counts look normal, but the data
-is wrong.
-
-**Symptoms:** `transaction_id`, `revenue`, or order dimensions appear on
-page_view, menu_browse, or other non-conversion events. All events in a session
-share the same order field values.
-
-**Fix — 3-step gating pattern:**
-
-1. **Identify the actual conversion event** using a session-level flag plus
-   deterministic ordering:
-
-```sql
+-- 1. Identify actual conversion event
 order_events as (
-    select event_id, event_order_id
-    from events
-    where event_order_id is not null
-        and order_placed_in_session_flag = 1
+    select event_id, event_order_id from events
+    where event_order_id is not null and order_placed_in_session_flag = 1
     qualify row_number() over (
         partition by session_id, event_order_id
         order by collector_tstamp desc, event_id desc
     ) = 1
-)
+),
+-- 2. Join through gating CTE, not directly on URL field
+-- 3. Gate ALL order fields: case when order_events.event_id is not null then ...
 ```
 
-2. **Join the order table through the gating CTE**, not directly on the
-   URL-extracted field:
+**Verify:** `COUNT(transaction_id)` should approximate `COUNT(DISTINCT transaction_id)`.
 
-```sql
-left join order_events
-    on events.event_id = order_events.event_id
-left join committed_orders
-    on order_events.event_order_id = committed_orders.order_id
-```
+### COALESCE Across Event Name Fields
+Multiple name fields (e.g., `se_action`, `event_action`, `event_name`) have different coverage. COALESCE to unify, but audit each separately first. Add `event_name_source` companion column to preserve provenance.
 
-3. **Gate ALL order-derived fields** behind the event check:
+### Event Noise Filtering
 
-```sql
-case when order_events.event_id is not null
-    then committed_orders.gross_revenue
-end as purchase_revenue
-```
+For event-level models, raw tables mix user interactions with telemetry. Follow this process:
 
-**Verification:** After fixing, `COUNT(transaction_id)` should approximately
-equal `COUNT(DISTINCT transaction_id)` (1:1). Before the fix, the former is
-orders of magnitude larger.
-
-**This pattern applies to ANY URL-extracted ID** — not just order IDs. If
-`product_id`, `category_id`, or similar fields are extracted from URLs, they
-will have the same fan-out behaviour. The `order_placed_in_session_flag` is
-necessary but not sufficient (it's 1 for ALL events in a converting session)
-— you still need the ROW_NUMBER to pick one specific event.
-
-### COALESCE Across Multiple Event Name Fields
-Event tracking systems often have multiple name fields with different coverage.
-For example, Snowplow has `se_action` (structured events), `event_action` (app
-events), and `event_name` (native type like page_view). Use COALESCE to unify,
-but audit each field separately first — they may contain different types of events
-(user interactions vs telemetry). When using COALESCE, also add an
-`event_name_source` companion column (e.g., 'se_action', 'event_action',
-'event_name') to preserve which field the value came from. This allows downstream
-consumers to disaggregate if the merged values have different semantics.
-
-### Event Noise Filtering (for Event-Level Models)
-
-When building event-level models (MTA, funnel analysis, behavioural analytics),
-the raw event table often contains a mix of genuine user interactions and
-system telemetry. Telemetry events (performance metrics, A/B test bucketing,
-app lifecycle, heartbeats) can dominate volume without providing attribution
-signal. Follow this process to filter them:
-
-**Step 1: Audit all event name sources separately**
-
-If the event table has multiple name fields (e.g., se_action, event_action,
-event_name), query each one independently to understand what each contributes.
-Use a single UNION ALL query with a `field_source` discriminator column so the
-user only has to run and download one result:
-
-```sql
-SELECT 'se_action' AS field_source, se_action AS event_value,
-       COUNT(*) AS event_count, COUNT(DISTINCT session_id) AS session_count
-FROM events
-WHERE se_action IS NOT NULL
-GROUP BY 1, 2
-
-UNION ALL
-
-SELECT 'event_action' AS field_source, event_action AS event_value,
-       COUNT(*) AS event_count, COUNT(DISTINCT session_id) AS session_count
-FROM events
-WHERE se_action IS NULL AND event_action IS NOT NULL
-GROUP BY 1, 2
-
-UNION ALL
-
-SELECT 'event_name' AS field_source, event_name AS event_value,
-       COUNT(*) AS event_count, COUNT(DISTINCT session_id) AS session_count
-FROM events
-WHERE se_action IS NULL AND event_action IS NULL AND event_name IS NOT NULL
-GROUP BY 1, 2
-
-UNION ALL
-
-SELECT 'ALL_NULL' AS field_source, '(all fields NULL)' AS event_value,
-       COUNT(*) AS event_count, COUNT(DISTINCT session_id) AS session_count
-FROM events
-WHERE se_action IS NULL AND event_action IS NULL AND event_name IS NULL
-GROUP BY 1, 2
-
-ORDER BY field_source, session_count DESC
-```
-
-**Step 2: Classify events and propose blacklist vs keep**
-
-Categorise each event as user engagement or telemetry. Common telemetry patterns:
-- Performance timing: `*_load_time`, `*_time_to_usable`, `*FetchTime`
-- System events: `environment_data_captured`, `*_experiment_*`, `basket_limit`
-- Heartbeats: `page_ping`, `application_foreground/background`
-- Auto-UI: `carousel_slide_change`, `sticky_cta_state_change`
-
-**Blacklist (not whitelist)** is usually more practical — event taxonomies have
-hundreds of values, making whitelisting impractical to maintain. A blacklist of
-~20 high-volume noise events typically removes 15-20% of total volume.
-
-**Step 3: Create a review document for stakeholder sign-off**
-
-Produce an Excel/spreadsheet with:
-- **Blacklist tab**: Event name, source field, volumes, category, rationale
-- **Keep tab**: ALL remaining events (not just examples) with auto-classified
-  funnel stage and a blank Review Feedback column for the team to annotate
-- **Implementation tab**: Options (CTE / seed table / macro) with trade-offs
-- **Legend tab**: Funnel stage classification guide
-
-Auto-classify funnel stages by keyword matching (Conversion, Consideration,
-Awareness, Marketing, Retention, Account, Support, etc.) and colour-code them.
-Enable autofilter so reviewers can filter by source field or funnel stage.
-
-The keep tab must list ALL events — not just examples — so the team can do a
-thorough review and flag anything they disagree with. This is a human review
-checkpoint, same principle as Phase 4.
-
-**Step 4: Implement as dbt seed table (recommended)**
-
-After sign-off, create a CSV seed file (e.g., `data/mta_event_blacklist.csv`)
-and anti-join in the model. This is more maintainable than a CTE blacklist
-because non-engineers can edit the CSV, it's version controlled, and it's
-reusable across models. Keep seeds small (<1000 rows).
-
-Note: If your CI/CD uses `dbt build`, seed dependencies are handled automatically
-(seeds are included in DAG order). If your CI uses `dbt run`, ensure `dbt seed`
-runs first — otherwise the blacklist anti-join will be silently ineffective.
+1. **Audit** each event name field separately (UNION ALL with `field_source` discriminator)
+2. **Classify** as engagement vs telemetry. Use a **blacklist** (not whitelist) -- ~20 high-volume noise events typically removes 15-20% volume
+3. **Review doc** with Blacklist/Keep/Implementation/Legend tabs for stakeholder sign-off. Keep tab must list ALL events
+4. **Implement** as dbt seed table (`data/mta_event_blacklist.csv`) with anti-join. If CI uses `dbt run` (not `dbt build`), ensure `dbt seed` runs first
