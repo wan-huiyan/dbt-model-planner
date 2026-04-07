@@ -1,9 +1,19 @@
 {
   "name": "dbt-model-planner",
   "description": "Plan and build dbt models from schema requirements through structured planning with human review, schema validation, and multi-dialect SQL generation.",
-  "version": "2.1.0",
-  "author": { "name": "Huiyan Wan" },
+  "version": "2.2.0",
+  "author": {
+    "name": "Huiyan Wan"
+  },
   "repository": "https://github.com/wan-huiyan/dbt-model-planner",
   "license": "MIT",
-  "keywords": ["dbt", "data-engineering", "sql", "analytics-engineering", "databricks", "snowflake", "bigquery"]
+  "keywords": [
+    "dbt",
+    "data-engineering",
+    "sql",
+    "analytics-engineering",
+    "databricks",
+    "snowflake",
+    "bigquery"
+  ]
 }
